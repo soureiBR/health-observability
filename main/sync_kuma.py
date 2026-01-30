@@ -2,47 +2,70 @@ import os
 from kubernetes import client, config
 from uptime_kuma_api import UptimeKumaApi, MonitorType
 
+# Variáveis vindas do export que você fez
+KUMA_URL = os.getenv("KUMA_URL", "https://status.soureicdn.com")
+KUMA_USER = os.getenv("KUMA_USER")
+KUMA_PASS = os.getenv("KUMA_PASS")
+
 def get_k8s_deployments():
-    """Usa a Client Library oficial para listar deployments locais"""
+    """Usa a Client Library para buscar no namespace analytics"""
     try:
-        # Tenta carregar a config interna (para quando for CronJob)
-        # Se falhar, usa a config do seu terminal (Docker Desktop)
         try:
             config.load_incluster_config()
-        except config.ConfigException:
+        except:
             config.load_kube_config()
 
-        # Instancia a API para lidar com Apps (Deployments)
         apps_v1 = client.AppsV1Api()
+        # Busca no namespace que você criou: analytics
+        deps = apps_v1.list_namespaced_deployment(namespace="analytics")
         
-        # Lista os deployments do namespace 'default'
-        # (Onde você criou o gtm-local-test)
-        deployments = apps_v1.list_namespaced_deployment(namespace="default")
-        
-        active_list = []
-        for dep in deployments.items:
+        active_services = []
+        for dep in deps.items:
             name = dep.metadata.name
-            
-            # Filtro para identificar seus serviços
             if name.startswith("gtm-"):
-                # No seu PC, a URL será apenas para teste
                 identifier = name.replace("gtm-", "")
-                active_list.append({
+                active_services.append({
                     "name": name,
                     "url": f"https://{identifier}.soureicdn.com/debug/healthz"
                 })
-        return active_list
+        return active_services
     except Exception as e:
-        print(f"❌ Erro ao usar a Client Library: {e}")
+        print(f"❌ Erro K8s: {e}")
         return []
 
+def sync_to_kuma(services):
+    """Loga no Kuma e sincroniza os monitores"""
+    if not services:
+        print("⚠️ Nenhum serviço gtm- encontrado.")
+        return
+
+    try:
+        api = UptimeKumaApi(KUMA_URL)
+        api.login(KUMA_USER, KUMA_PASS)
+        print("🔓 Logado no Uptime Kuma com sucesso!")
+
+        existing_monitors = api.get_monitors()
+        kuma_names = [m['name'] for m in existing_monitors]
+
+        for srv in services:
+            if srv['name'] not in kuma_names:
+                print(f"➕ Criando monitor: {srv['name']}")
+                api.add_monitor(
+                    type=MonitorType.HTTP,
+                    name=srv['name'],
+                    url=srv['url'],
+                    interval=60
+                )
+            else:
+                print(f"✅ {srv['name']} já existe no Kuma.")
+        
+        api.disconnect()
+    except Exception as e:
+        print(f"❌ Erro Kuma: {e}")
+
 if __name__ == "__main__":
-    print("🚀 Testando conexão com o Docker Desktop...")
-    services = get_k8s_deployments()
-    
-    if services:
-        print(f"✅ Sucesso! Encontrei {len(services)} serviço(s):")
-        for s in services:
-            print(f" - {s['name']} (URL: {s['url']})")
-    else:
-        print("⚠️ Nenhum deployment 'gtm-' encontrado no namespace default.")
+    print("🚀 Iniciando Sincronização Completa...")
+    services_found = get_k8s_deployments()
+    print(f"🔍 Encontrados {len(services_found)} serviços no K8s.")
+    sync_to_kuma(services_found)
+    print("🏁 Processo finalizado.")

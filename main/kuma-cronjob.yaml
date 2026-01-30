@@ -4,14 +4,19 @@ metadata:
   name: kuma-sync-cronjob
   namespace: analytics
 spec:
-  schedule: "0 */6 * * *" # Executa a cada 6 horas
+  # Roda a cada 6 horas (00:00, 06:00, 12:00, 18:00)
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid 
   jobTemplate:
     spec:
       template:
         spec:
+          serviceAccountName: kuma-sync-sa
+          # O pod usará uma ServiceAccount para se autenticar via Client Library
           containers:
-          - name: sync-script
-            image: seu-repositorio/sync-kuma:latest # Onde sua imagem Docker está guardada
+          - name: sync-bot
+            # Aqui entrará a URL da imagem no GitHub Packages (ghcr.io)
+            image: ghcr.io/hugo322-github/health-observability:latest
             env:
             - name: KUMA_URL
               value: "https://status.soureicdn.com"
@@ -19,4 +24,6 @@ spec:
               value: "admin"
             - name: KUMA_PASS
               value: "3mUXcHwMajWM8S"
-          restartPolicy: OnFailure # Se der erro, tenta de novo
+            - name: DRY_RUN
+              value: "false"
+          restartPolicy: OnFailure
