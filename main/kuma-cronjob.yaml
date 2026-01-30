@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kuma-sync-cronjob
+  namespace: analytics
+spec:
+  schedule: "0 */6 * * *" # Executa a cada 6 horas
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: sync-script
+            image: seu-repositorio/sync-kuma:latest # Onde sua imagem Docker está guardada
+            env:
+            - name: KUMA_URL
+              value: "https://status.soureicdn.com"
+            - name: KUMA_USER
+              value: "admin"
+            - name: KUMA_PASS
+              value: "3mUXcHwMajWM8S"
+          restartPolicy: OnFailure # Se der erro, tenta de novo
