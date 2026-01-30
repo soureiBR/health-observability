@@ -12,18 +12,20 @@ spec:
       template:
         spec:
           serviceAccountName: kuma-sync-sa
+          # Chave para baixar a imagem do repositório privado
+          imagePullSecrets:
+          - name: ghcr-secret
           # O pod usará uma ServiceAccount para se autenticar via Client Library
           containers:
           - name: sync-bot
             # Aqui entrará a URL da imagem no GitHub Packages (ghcr.io)
-            image: ghcr.io/hugo322-github/health-observability:latest
+            image: ghcr.io/soureibr/health-observability:latest
+            envFrom:
+            - secretRef:
+                name: kuma-creds
             env:
             - name: KUMA_URL
               value: "https://status.soureicdn.com"
-            - name: KUMA_USER
-              value: "admin"
-            - name: KUMA_PASS
-              value: "3mUXcHwMajWM8S"
             - name: DRY_RUN
               value: "false"
           restartPolicy: OnFailure
