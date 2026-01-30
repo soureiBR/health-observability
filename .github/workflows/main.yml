@@ -33,4 +33,4 @@ jobs:
         with:
           context: ./main
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/soureibr/health-observability:latest
