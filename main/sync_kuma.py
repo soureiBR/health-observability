@@ -24,7 +24,7 @@ def sync():
             if (dep.status.ready_replicas or 0) > 0 and not any(p in name for p in EXCLUDE_PATTERN.split('|')):
                 k8s_list.append({
                     'name': name,
-                    'url': f"https://{name}.soureicdn.com"
+                    'url': f"https://{name}.soureicdn.com/debug/healthz"
                 })
         
         k8s_names = [d['name'] for d in k8s_list]
