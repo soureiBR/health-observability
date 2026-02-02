@@ -22,9 +22,12 @@ def sync():
             desired = dep.spec.replicas if dep.spec.replicas is not None else 0
             
             if desired > 0 and not any(p in name for p in EXCLUDE_PATTERN.split('|')):
+                # Remove o prefixo 'gtm-' para gerar o subdomínio correto
+                identifier = name.replace("gtm-", "")
+                
                 k8s_list.append({
                     'name': name,
-                    'url': f"https://{name}.soureicdn.com/debug/healthz"
+                    'url': f"https://{identifier}.soureicdn.com/debug/healthz"
                 })
         
         k8s_names = [d['name'] for d in k8s_list]
