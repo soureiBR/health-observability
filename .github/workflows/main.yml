@@ -3,7 +3,7 @@ name: Build and Push Kuma Sync
 on:
   push:
     branches:
-      - main  # O traço e o recuo são fundamentais aqui
+      - main
 
 jobs:
   build-and-push:
@@ -32,5 +32,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./main
+          file: ./main/Dockerfile.webhook  # ✅ ADICIONE ESTA LINHA!
           push: true
           tags: ghcr.io/soureibr/health-observability:latest
