@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o script
 COPY sync_kuma.py .
+COPY kuma_webhook_enricher.py .
 
 # Comando para rodar o script
-CMD ["python", "sync_kuma.py"]
+CMD python kuma_webhook_enricher.py & python sync_kuma.py
