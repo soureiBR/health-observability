@@ -3,12 +3,10 @@ Webhook Server para enriquecer notificações do Kuma com logs do Kubernetes
 Recebe notificações de falha do Kuma, captura logs/describe do pod, e reenvia enriquecido
 """
 
-import time
 from flask import Flask, request, jsonify
 from kubernetes import client, config
 import subprocess
 import requests
-import json
 import re
 from datetime import datetime
 
@@ -18,7 +16,6 @@ NAMESPACE = "analytics"
 
 def extract_http_status(error_msg: str) -> tuple:
     """Extrai status HTTP e código da mensagem de erro"""
-    # Padrões comuns: "status code 500", "503", "400", etc
     match = re.search(r'(\d{3})', error_msg)
     status_code = int(match.group(1)) if match else None
     
@@ -45,7 +42,6 @@ def get_pod_logs(pod_name: str, namespace: str = NAMESPACE, tail_lines: int = 50
             tail_lines=tail_lines,
             timestamps=True
         )
-        # Retorna últimas 1500 caracteres para não sobrecarregar a mensagem
         return logs[-1500:] if len(logs) > 1500 else logs
     except Exception as e:
         return f"❌ Erro ao buscar logs: {str(e)[:200]}"
@@ -60,7 +56,6 @@ def get_pod_describe(pod_name: str, namespace: str = NAMESPACE) -> str:
             timeout=10
         )
         if result.returncode == 0:
-            # Retorna últimas 1500 caracteres
             output = result.stdout
             return output[-1500:] if len(output) > 1500 else output
         else:
@@ -69,9 +64,7 @@ def get_pod_describe(pod_name: str, namespace: str = NAMESPACE) -> str:
         return f"❌ Erro ao descrever pod: {str(e)[:200]}"
 
 def get_pod_status(deployment_name: str, namespace: str = NAMESPACE) -> dict:
-    """
-    Retorna status detalhado do pod relacionado ao deployment
-    """
+    """Retorna status detalhado do pod relacionado ao deployment"""
     try:
         v1 = client.CoreV1Api()
         pods = v1.list_namespaced_pod(namespace)
@@ -82,7 +75,6 @@ def get_pod_status(deployment_name: str, namespace: str = NAMESPACE) -> dict:
         if all_pod_names[:3]:
             print(f"      Exemplos: {all_pod_names[:3]}")
         
-        # Encontra pods relacionados ao deployment
         for pod in pods.items:
             pod_name = pod.metadata.name.lower()
             deployment_name_lower = deployment_name.lower()
@@ -98,7 +90,7 @@ def get_pod_status(deployment_name: str, namespace: str = NAMESPACE) -> dict:
             
             if matches:
                 pod_name = pod.metadata.name
-                status = pod.status.phase  # Running, Pending, Failed, Unknown, Succeeded
+                status = pod.status.phase
                 
                 info = {
                     'pod_name': pod_name,
@@ -119,13 +111,11 @@ def get_pod_status(deployment_name: str, namespace: str = NAMESPACE) -> dict:
                 if pod.spec.containers:
                     info['containers'] = [c.name for c in pod.spec.containers]
                 
-                # Se Pending, pega describe (mostra por que não iniciou)
+                # Busca logs/describe baseado no status
                 if status == 'Pending':
                     info['describe'] = get_pod_describe(pod_name, namespace)
-                # Se Running, pega logs
                 elif status == 'Running':
                     info['logs'] = get_pod_logs(pod_name, namespace)
-                # Se Failed, pega describe + logs
                 elif status == 'Failed':
                     info['describe'] = get_pod_describe(pod_name, namespace)
                     info['logs'] = get_pod_logs(pod_name, namespace)
@@ -157,7 +147,7 @@ def format_discord_message(monitor_name: str, service_url: str, error_msg: str, 
     
     embed = {
         "title": f"❌ {monitor_name} CAIU",
-        "color": 15158332,  # Vermelho
+        "color": 15158332,
         "fields": [
             {
                 "name": "📊 Status HTTP",
@@ -188,7 +178,7 @@ def format_discord_message(monitor_name: str, service_url: str, error_msg: str, 
         "timestamp": datetime.utcnow().isoformat()
     }
     
-    # Se Pending, adiciona describe
+    # Adiciona describe para Pending
     if pod_info['status'] == 'Pending' and pod_info['describe']:
         embed["fields"].append({
             "name": "📋 Describe do Pod (Por quê não subiu?)",
@@ -196,7 +186,7 @@ def format_discord_message(monitor_name: str, service_url: str, error_msg: str, 
             "inline": False
         })
     
-    # Se Failed, adiciona describe + logs
+    # Adiciona describe + logs para Failed
     elif pod_info['status'] == 'Failed':
         if pod_info['describe']:
             embed["fields"].append({
@@ -211,7 +201,7 @@ def format_discord_message(monitor_name: str, service_url: str, error_msg: str, 
                 "inline": False
             })
     
-    # Se Running, adiciona logs
+    # Adiciona logs para Running
     elif pod_info['status'] == 'Running' and pod_info['logs']:
         embed["fields"].append({
             "name": "📝 Últimos Logs",
@@ -239,18 +229,15 @@ def format_telegram_message(monitor_name: str, service_url: str, error_msg: str,
    • Pronto: {'✅ Sim' if pod_info['ready'] else '❌ Não'}
 """
     
-    # Se Pending, adiciona describe
     if pod_info['status'] == 'Pending' and pod_info['describe']:
         message += f"\n📋 **Descrição (Investigue por quê não subiu)**:\n```\n{pod_info['describe'][:400]}...\n```"
     
-    # Se Failed, adiciona describe + logs
     elif pod_info['status'] == 'Failed':
         if pod_info['describe']:
             message += f"\n📋 **Describe**:\n```\n{pod_info['describe'][:300]}\n```"
         if pod_info['logs']:
             message += f"\n📝 **Logs**:\n```\n{pod_info['logs'][-400:]}\n```"
     
-    # Se Running, adiciona logs
     elif pod_info['status'] == 'Running' and pod_info['logs']:
         message += f"\n📝 **Últimos Logs**:\n```\n{pod_info['logs'][-400:]}\n```"
     
@@ -266,15 +253,6 @@ def health():
 def kuma_alert_webhook():
     """
     Webhook que recebe alertas do Kuma e enriquece com logs do K8s
-    
-    Esperado POST com:
-    {
-        "monitor_name": "gtm-xxx",
-        "service_url": "https://xxx.soureicdn.com/debug/healthz",
-        "error": "Request failed with status code 503",
-        "discord_webhook": "https://discord.com/api/webhooks/...",
-        "telegram_url": "https://api.telegram.org/botXXX/sendMessage"  (opcional)
-    }
     """
     try:
         data = request.json
@@ -288,7 +266,7 @@ def kuma_alert_webhook():
         
         print(f"📥 Webhook recebido para: {monitor_name}")
         
-        # Extrai nome do deployment do monitor name
+        # Extrai nome do deployment
         deployment_name = monitor_name.replace("gtm-", "")
         
         # Busca informações do pod
