@@ -16,4 +16,4 @@ COPY sync_kuma.py .
 COPY kuma_webhook_enricher.py .
 
 # Comando para rodar o script
-CMD python kuma_webhook_enricher.py & python sync_kuma.py
+CMD python sync_kuma.py & python kuma_webhook_enricher.py
