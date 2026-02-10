@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuma-webhook-enricher
+  namespace: analytics
+  labels:
+    app: kuma-webhook-enricher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kuma-webhook-enricher
+  template:
+    metadata:
+      labels:
+        app: kuma-webhook-enricher
+    spec:
+      serviceAccountName: kuma-sync-sa 
+      containers:
+      - name: enricher
+        # AJUSTADO: Nome da imagem conforme o seu GitHub Workflow
+        image: ghcr.io/soureibr/health-observability:latest 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuma-webhook-enricher
+  namespace: analytics
+spec:
+  type: ClusterIP
+  selector:
+    app: kuma-webhook-enricher
+  ports:
+  - port: 80           # Porta externa (dentro do cluster)
+    targetPort: 5000   # Porta interna do Flask
+    protocol: TCP
+    name: http
