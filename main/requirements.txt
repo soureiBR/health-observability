@@ -1,2 +1,6 @@
 uptime-kuma-api
 kubernetes
+Flask
+requests
+python-socketio
+python-engineio
