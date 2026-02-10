@@ -44,7 +44,7 @@ def sync():
 
     print(f"🚀 [PASSO 2] Sincronizando com Uptime Kuma...")
     try:
-        with UptimeKumaApi(KUMA_URL) as api:
+        with UptimeKumaApi(KUMA_URL, timeout=300) as api:
             api.login(KUMA_USER, KUMA_PASS)
             monitors = api.get_monitors()
             kuma_monitors_map = {m['name']: m['id'] for m in monitors if m['name'].startswith("gtm-")}
@@ -160,17 +160,16 @@ def update_monitor_group(prefix: str, group_name: str, group_id: int = None):
 if __name__ == "__main__":
     import sys
     
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "update":
-            # Uso: python sync_kuma.py update gtm- "waster-project (gtm)" [group_id]
-            prefix = sys.argv[2] if len(sys.argv) > 2 else "gtm-"
-            group = sys.argv[3] if len(sys.argv) > 3 else "waster-project (gtm)"
-            group_id = int(sys.argv[4]) if len(sys.argv) > 4 else None
-            update_monitor_group(prefix, group, group_id)
-        else:
-            print("❌ Comando desconhecido")
-            print("\nComandos disponíveis:")
-            print("  python sync_kuma.py              - Sincroniza K8s com Kuma (padrão)")
-            print("  python sync_kuma.py update <prefixo> <grupo> [group_id]  - Atualiza monitors para grupo")
+    # Se quiser rodar o update manual via comando
+    if len(sys.argv) > 1 and sys.argv[1] == "update":
+        prefix = sys.argv[2] if len(sys.argv) > 2 else "gtm-"
+        group = sys.argv[3] if len(sys.argv) > 3 else "waster-project (gtm)"
+        group_id = int(sys.argv[4]) if len(sys.argv) > 4 else None
+        update_monitor_group(prefix, group, group_id)
+    
+    # Modo padrão: Sincronização contínua
     else:
-        sync()
+        while True:
+            sync()
+            print("⏳ Aguardando 10 minutos para a próxima sincronização...")
+            time.sleep(600)  # 600 segundos = 10 minutos
