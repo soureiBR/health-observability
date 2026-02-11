@@ -8,11 +8,13 @@ from kubernetes import client, config
 import subprocess
 import requests
 import re
+import os
 from datetime import datetime
 
 app = Flask(__name__)
 
 NAMESPACE = "analytics"
+WEBHOOK_TOKEN = os.environ.get("WEBHOOK_TOKEN", "")
 
 def extract_http_status(error_msg: str) -> tuple:
     """Extrai status HTTP e código da mensagem de erro"""
@@ -254,6 +256,12 @@ def kuma_alert_webhook():
     """
     Webhook que recebe alertas do Kuma e enriquece com logs do K8s
     """
+    # Validação do token de autenticação
+    auth_header = request.headers.get('Authorization', '')
+    if WEBHOOK_TOKEN and auth_header != f"Bearer {WEBHOOK_TOKEN}":
+        print(f"⛔ Requisição não autorizada - token inválido")
+        return jsonify({"error": "Unauthorized"}), 401
+
     try:
         data = request.json
         

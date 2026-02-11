@@ -8,7 +8,7 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 5000
+  - port: 80
     targetPort: 5000
     protocol: TCP
   selector:
@@ -72,3 +72,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: WEBHOOK_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: webhook-enricher-secret
+              key: token
