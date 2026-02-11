@@ -256,14 +256,17 @@ def kuma_alert_webhook():
     """
     Webhook que recebe alertas do Kuma e enriquece com logs do K8s
     """
-    # Validação do token de autenticação
-    auth_header = request.headers.get('Authorization', '')
-    if WEBHOOK_TOKEN and auth_header != f"Bearer {WEBHOOK_TOKEN}":
-        print(f"⛔ Requisição não autorizada - token inválido")
-        return jsonify({"error": "Unauthorized"}), 401
-
     try:
         data = request.json
+
+        # Validação do token (aceita via header OU body)
+        auth_header = request.headers.get('Authorization', '')
+        body_token = data.get('token', '')
+        if WEBHOOK_TOKEN:
+            if auth_header != f"Bearer {WEBHOOK_TOKEN}" and body_token != WEBHOOK_TOKEN:
+                source_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+                print(f"⛔ Requisição não autorizada - IP: {source_ip}")
+                return jsonify({"error": "Unauthorized"}), 401
         
         monitor_name = data.get('monitor_name', 'Unknown')
         service_url = data.get('service_url', '')

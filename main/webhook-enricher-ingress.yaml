@@ -13,7 +13,8 @@ metadata:
   name: kuma-webhook-enricher
   namespace: analytics
   annotations:
-    nginx.ingress.kubernetes.io/whitelist-source-range: "212.115.125.21/32"
+    # TODO: Reativar com IP correto da VM após descobrir o IP real de saída
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "212.115.125.21/32"
 spec:
   ingressClassName: nginx
   rules:
