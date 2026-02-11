@@ -8,7 +8,7 @@ KUMA_URL = "https://status.soureicdn.com"
 KUMA_USER = "admin"
 KUMA_PASS = "3mUXcHwMajWM8S"
 NAMESPACE = "analytics"
-EXCLUDE_PATTERN = "proxy|preview|data-api"
+EXCLUDE_PATTERN = "proxy|preview|data-api|kuma-webhook-enricher"
 
 def sync():
     print(f"🚀 [PASSO 1] Lendo Kubernetes...")
