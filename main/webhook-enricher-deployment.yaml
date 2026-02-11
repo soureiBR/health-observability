@@ -39,8 +39,8 @@ spec:
       serviceAccountName: kuma-sync-sa
       containers:
       - name: webhook-enricher
-        image: kuma-webhook-enricher:latest  # Substitua pela sua imagem
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/soureibr/health-observability:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http
